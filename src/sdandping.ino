@@ -1,72 +1,141 @@
-// #include <SD.h>
-// #include <SPI.h>
-// #include <ESP8266WiFi.h>
-// #include <ESP8266Ping.h>
+#include <SD.h>
+#include <SPI.h>
+#include <ESP8266WiFi.h>
+#include <ESP8266Ping.h>
 
-// const char* ssid = "276533VCT1";
-// const char* password = "03734109213";
+const char *ssid = "276533VCT1";
+const char *password = "03734109213";
 
-// const int chipSelect = D8; 
+const int chipSelect = D8;
 
-// File dataFile; // Declare Ping object
+File dataFile; // Declare Ping object
+String stringone;
 
-// void setup() {
-//   Serial.begin(115200);
+void setup()
+{
+  Serial.begin(460800);
 
-//   // Connect to Wi-Fi
-//   connectToWiFi();
+  // Connect to Wi-Fi
+  //   connectToWiFi();
 
-//   if (!SD.begin(chipSelect)) {
-//     Serial.println("SD card initialization failed!");
-//     return;
-//   }
+  if (!SD.begin(chipSelect))
+  {
+    Serial.println("SD card initialization failed!");
+    return;
+  }
 
-//   Serial.println("SD card initialized.");
+  Serial.println("SD card initialized.");
+}
 
-//   // Open the file. Change "data.csv" to your file name.
-//   dataFile = SD.open("temp.csv", FILE_WRITE);
+void loop()
+{
+  backUp();
+  // Ping test every 10 seconds
+  delay(20000);
+  //   if (WiFi.status() == WL_CONNECTED) {
+  //     if(Ping.ping("www.gooogg.com")) {
+  //       Serial.println("pingou");
+  //     }
+  //     else {
+  //       Serial.println("nao pingou");
+  //     }
+  //   } else {
+  //     Serial.println("Not connected to Wi-Fi.");
+  //     // Reconnect to Wi-Fi
+  //     connectToWiFi();
+  //   }
+}
 
-//   if (dataFile) {
-//     Serial.println("File opened successfully:");
+void connectToWiFi()
+{
+  Serial.println("Connecting to Wi-Fi...");
+  WiFi.begin(ssid, password);
 
-//     // Read and print the file contents
-//     while (dataFile.available()) {
-//       dataFile.println("Timestamp,Value1,Value2");
-//       Serial.write(dataFile.read());
-//     }
+  while (WiFi.status() != WL_CONNECTED)
+  {
+    delay(1000);
+    Serial.println("Connecting...");
+  }
 
-//     // Close the file
-//     dataFile.close();
-//   } else {
-//     Serial.println("Error opening file.");
-//   }
-// }
+  Serial.println("Connected to Wi-Fi. IP address: " + WiFi.localIP().toString());
+}
 
-// void loop() {
-//   // Ping test every 10 seconds
-//   delay(10000);
-//   if (WiFi.status() == WL_CONNECTED) {
-//     if(Ping.ping("www.gooogg.com")) {
-//       Serial.println("pingou");
-//     }
-//     else {
-//       Serial.println("nao pingou");
-//     }
-//   } else {
-//     Serial.println("Not connected to Wi-Fi.");
-//     // Reconnect to Wi-Fi
-//     connectToWiFi();
-//   }
-// }
+void backUp()
+{
 
-// void connectToWiFi() {
-//   Serial.println("Connecting to Wi-Fi...");
-//   WiFi.begin(ssid, password);
+  // Open the file. Change "data.csv" to your file name.
+  dataFile = SD.open("temperaturaa.csv");
 
-//   while (WiFi.status() != WL_CONNECTED) {
-//     delay(1000);
-//     Serial.println("Connecting...");
-//   }
+  if (dataFile)
+  {
+    Serial.println("File opened successfully:");
 
-//   Serial.println("Connected to Wi-Fi. IP address: " + WiFi.localIP().toString());
-// }
+    while (dataFile.available())
+    { // Read and print the file contents
+      stringone = dataFile.readString();
+      // String stringtwo = stringone.replace("", "/n");
+      int index = 184;
+      int count = 0;
+      Serial.println(stringone.indexOf('13:50:24'));
+      for (size_t i = 184; i < stringone.length(); i++)
+      {
+        if (stringone[i] == '\n')
+        {
+          count++;
+          parseAndStoreValues(stringone.substring(index, i));
+          // Serial.println(stringone.substring(index, i));
+          // Serial.println(" ");
+          index = i + 1;
+        }
+      }
+      // Serial.println(count);
+
+      Serial.println(stringone);
+      // parseAndStoreValues(stringone);
+
+      // Close the file
+      dataFile.close();
+    }
+  }
+  else
+  {
+    Serial.println("Error opening file.");
+  }
+}
+void parseAndStoreValues(String input)
+{
+  // Define variables to store the parsed values
+  String time;
+  float values[9]; // Assuming 9 numeric values in the input
+
+  // Find the position of the first comma
+  int commaIndex = input.indexOf(',');
+
+  // Extract the time value
+  time = input.substring(0, commaIndex);
+  input = input.substring(commaIndex + 1);
+
+  // Parse and store the numeric values
+  for (int i = 0; i < 9; i++)
+  {
+    commaIndex = input.indexOf(',');
+    if (commaIndex == -1)
+    {
+      // Last value in the string
+      values[i] = input.toFloat();
+    }
+    else
+    {
+      values[i] = input.substring(0, commaIndex).toFloat();
+      input = input.substring(commaIndex + 1);
+    }
+  }
+
+  // Print the parsed values for verification
+  Serial.println("TimesTamp: " + time);
+  for (int i = 0; i < 9; i++)
+  {
+    Serial.print("Value " + String(i + 1) + ": ");
+    Serial.println(values[i]);
+  }
+}

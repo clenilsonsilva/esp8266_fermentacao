@@ -1,0 +1,17 @@
+{
+	"folders": [
+		{
+			"path": "../../../esp8266_fermentacao"
+		},
+		{
+			"name": "231122-092922-esp12e",
+			"path": "."
+		}
+	],
+	"settings": {
+		"files.associations": {
+			"chrono": "cpp",
+			"algorithm": "cpp"
+		}
+	}
+}

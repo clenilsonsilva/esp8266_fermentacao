@@ -58,27 +58,10 @@ void setup()
     if (!SD.begin(chipSelect))
     {
         Serial.println("SD card initialization failed!");
-        return;
-    }
-
-    Serial.println("SD card initialized.");
-
-    // Open the file. Change "data.csv" to your file name.
-    dataFile = SD.open("temp.csv", FILE_WRITE);
-
-    if (dataFile)
-    {
-        Serial.println("File opened successfully:");
-
-        dataFile.println(",colcho_1,,,colcho_2,,,colcho_3,");
-        dataFile.println("timeStamp,sensor_de_baixo,sensor_do_meio,sensor_de_cima,sensor_de_baixo,sensor_do_meio,sensor_de_cima,sensor_de_baixo,sensor_do_meio,sensor_de_cima,");
-
-        // Close the file
-        dataFile.close();
     }
     else
     {
-        Serial.println("Error opening file.");
+        Serial.println("SD card initialized.");
     }
 
     // Start communication with the DS18B20 sensors
@@ -113,13 +96,19 @@ void loop()
         if (Ping.ping("www.google.com"))
         {
             Serial.println("pingou");
-            // uploadTemperature(list);
-            // uploadSD(list);
-            fromSdtoArd();
+            if (SD.exists("temperaturaa.csv"))
+            {
+                fromSdtoArd();
+            }
+            else
+            {
+                uploadTemperature(list);
+            }
         }
         else
         {
             Serial.println("nao pingou");
+            uploadSD(list);
         }
     }
     else
@@ -166,8 +155,8 @@ void uploadTemperature(float *temperature)
         Serial.println(high);
         Serial.println(temperature[i + 2]);
 
-        String usuario = user + teste(i + 1) + "/user";
-        Firebase.setString(firebaseData, usuario.c_str(), user);
+        // String usuario = user + teste(i + 1) + "/user";
+        // Firebase.setString(firebaseData, usuario.c_str(), user);
     }
     Serial.println("");
     Serial.println("");
@@ -175,8 +164,31 @@ void uploadTemperature(float *temperature)
 // upload ds18b20 values to sdcard
 void uploadSD(float *temperature)
 {
+
+    // ckeck if file exists
+    if (!SD.exists("temperaturaa.csv"))
+    {
+        // Open the file. Change "data.csv" to your file name.
+        dataFile = SD.open("temperaturaa.csv", FILE_WRITE);
+
+        if (dataFile)
+        {
+            Serial.println("File opened successfully:");
+
+            dataFile.println(",colcho_1,,,colcho_2,,,colcho_3,");
+            dataFile.println("timeStamp,sensor_de_baixo,sensor_do_meio,sensor_de_cima,sensor_de_baixo,sensor_do_meio,sensor_de_cima,sensor_de_baixo,sensor_do_meio,sensor_de_cima,");
+
+            // Close the file
+            dataFile.close();
+        }
+        else
+        {
+            Serial.println("Error opening file.");
+        }
+    }
+
     // Open the file. Change "data.csv" to your file name.
-    dataFile = SD.open("temp.csv", FILE_WRITE);
+    dataFile = SD.open("temperaturaa.csv", FILE_WRITE);
 
     if (dataFile)
     {
@@ -227,10 +239,9 @@ void fromSdtoArd()
         { // Read and print the file contents
             stringone = dataFile.readString();
             // String stringtwo = stringone.replace("", "/n");
-            int index = 184;
             int count = 0;
             Serial.println(stringone);
-            String low = "clenilson/backUp";
+            String data = "clenilson/backUp/data";
             stringone = replaceBl(stringone);
             Serial.println(stringone.indexOf('\n'));
             // for (size_t i = 0; i < stringone.length(); i++)
@@ -240,9 +251,22 @@ void fromSdtoArd()
             //     }
             // }
             // Serial.println(count);
-            if (Firebase.setString(firebaseData, low.c_str(), stringone))
+            if (Firebase.setString(firebaseData, data.c_str(), stringone))
             {
                 Serial.println("Data sent to Firestore!");
+
+                // Close the file
+                dataFile.close();
+
+                // Delete the file after sending data to Firestore
+                if (SD.remove("temperaturaa.csv"))
+                {
+                    Serial.println("File deleted successfully!");
+                }
+                else
+                {
+                    Serial.println("Error deleting file!");
+                }
             }
             else
             {

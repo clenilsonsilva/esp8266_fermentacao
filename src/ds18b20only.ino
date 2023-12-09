@@ -96,19 +96,22 @@ void loop()
         if (Ping.ping("www.google.com"))
         {
             Serial.println("pingou");
-            if (SD.exists("temperaturaa.csv"))
+            if (SD.exists("temperatura.csv"))
             {
                 fromSdtoArd();
             }
-            else
-            {
-                uploadTemperature(list);
-            }
+            // uploadTemperature(list);
+            // uploadSD(list);
         }
         else
         {
             Serial.println("nao pingou");
             uploadSD(list);
+            // if (SD.exists("temperatura.csv"))
+            // {
+            //     fromSdtoArd();
+            // }
+            // uploadTemperature(list);
         }
     }
     else
@@ -166,10 +169,10 @@ void uploadSD(float *temperature)
 {
 
     // ckeck if file exists
-    if (!SD.exists("temperaturaa.csv"))
+    if (!SD.exists("temperatura.csv"))
     {
         // Open the file. Change "data.csv" to your file name.
-        dataFile = SD.open("temperaturaa.csv", FILE_WRITE);
+        dataFile = SD.open("temperatura.csv", FILE_WRITE);
 
         if (dataFile)
         {
@@ -188,7 +191,7 @@ void uploadSD(float *temperature)
     }
 
     // Open the file. Change "data.csv" to your file name.
-    dataFile = SD.open("temperaturaa.csv", FILE_WRITE);
+    dataFile = SD.open("temperatura.csv", FILE_WRITE);
 
     if (dataFile)
     {
@@ -228,7 +231,7 @@ void fromSdtoArd()
 {
 
     // Open the file. Change "data.csv" to your file name.
-    dataFile = SD.open("temperaturaa.csv");
+    dataFile = SD.open("temperatura.csv");
 
     if (dataFile)
     {
@@ -251,29 +254,23 @@ void fromSdtoArd()
             //     }
             // }
             // Serial.println(count);
-            if (Firebase.setString(firebaseData, data.c_str(), stringone))
+            Firebase.setString(firebaseData, data.c_str(), stringone);
+            Serial.println("Data sent to Firestore!");
+
+            // Close the file
+            dataFile.close();
+
+            // Delete the file after sending data to Firestore
+            if (SD.remove("temperatura.csv"))
             {
-                Serial.println("Data sent to Firestore!");
-
-                // Close the file
-                dataFile.close();
-
-                // Delete the file after sending data to Firestore
-                if (SD.remove("temperaturaa.csv"))
-                {
-                    Serial.println("File deleted successfully!");
-                }
-                else
-                {
-                    Serial.println("Error deleting file!");
-                }
+                Serial.println("File deleted successfully!");
             }
             else
             {
-                Serial.println("Error sending data to Firestore");
-                Serial.println(firebaseData.errorReason());
+                Serial.println("Error deleting file!");
             }
-            Serial.println(stringone);
+
+            // Serial.println(stringone);
 
             // Close the file
             dataFile.close();

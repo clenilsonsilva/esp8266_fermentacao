@@ -12,7 +12,7 @@
 // teste
 
 #define FIREBASE_HOST_1 "tcc-ifpa-default-rtdb.firebaseio.com" // the project name address from firebase id
-#define FIREBASE_HOST_2 "backup-data.firebaseio.com"            // the project name address from firebase id
+#define FIREBASE_HOST_2 "backup-data.firebaseio.com"           // the project name address from firebase id
 #define FIREBASE_AUTH "z6f4IHnNRvN48XS9hJ1Zd7T8MOjASumayA8g2zar"
 
 #define WIFI_SSID "276533VCT1" // input your home or public wifi name
@@ -97,12 +97,12 @@ void loop()
         if (Ping.ping("www.google.com"))
         {
             Serial.println("pingou");
-            // if (SD.exists("temperatura.csv"))
-            // {
-            //     fromSdtoArd();
-            // }
+            if (SD.exists("temperatura.csv"))
+            {
+                fromSdtoArd();
+            }
             // uploadTemperature(list);
-            uploadSD(list, valores);
+            // uploadSD(list, valores);
         }
         else
         {
@@ -248,7 +248,23 @@ void fromSdtoArd()
             // unsigned long endtime = millis() - timeout;
             // sent file to firebase
             if (!Firebase.setFile(firebaseData2, StorageType::SD, "clenilson/backup", "temperatura.csv", rtdbUploadCallback /* callback function*/))
+            {
+                Serial.println("PASSED");
+                // // Delete the file after sending data to Firestore
+                // if (SD.remove("temperatura.csv"))
+                // {
+                //     Serial.println("File deleted successfully!");
+                // }
+                // else
+                // {
+                //     Serial.println("Error deleting file!");
+                // }
+            }
+            else
+            {
+                Serial.println("FAILED");
                 Serial.println(firebaseData2.errorReason());
+            }
             // Serial.println("Data sent to Firestore!");
 
             // // Close the file

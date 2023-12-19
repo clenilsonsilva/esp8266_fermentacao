@@ -76,54 +76,53 @@ void setup()
 void loop()
 {
     // Request temperature data from all sensors
-    sensors.requestTemperatures();
+    // sensors.requestTemperatures();
 
     // Loop through each sensor and print the temperature
-    float list[sensorsQnt] = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
-    for (int i = 0; i < sensorsQnt; i++)
-    {
-        float temperature = sensors.getTempCByIndex(i);
-        list[i] = temperature;
-        Serial.print(list[i]);
-    }
+    // float list[sensorsQnt] = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
+    // for (int i = 0; i < sensorsQnt; i++)
+    // {
+    //     float temperature = sensors.getTempCByIndex(i);
+    //     list[i] = temperature;
+    //     Serial.print(list[i]);
+    // }
     count++;
 
     RtcDateTime instante = Rtc.GetDateTime();
-    String valores = String(instante.Day()) + "/" + String(instante.Month()) + "/" + String(instante.Year()) + " " + String(instante.Hour()) + ":" + String(instante.Minute()) + ":" + String(instante.Second());
-    Serial.println(valores);
+    Serial.println(printFormattedTime(instante));
 
-    if (WiFi.status() == WL_CONNECTED)
-    {
-        if (Ping.ping("www.google.com"))
-        {
-            Serial.println("pingou");
-            if (SD.exists("temperatura.csv"))
-            {
-                fromSdtoArd();
-            }
-            // uploadTemperature(list);
-            // uploadSD(list, valores);
-        }
-        else
-        {
-            Serial.println("nao pingou");
-            uploadSD(list, String(valores));
-            // if (SD.exists("temperatura.csv"))
-            // {
-            //     fromSdtoArd();
-            // }
-            // uploadTemperature(list);
-        }
-    }
-    else
-    {
-        Serial.println("Not connected to Wi-Fi.");
-        // Reconnect to Wi-Fi
-        connectToWiFi();
-    }
+    // if (WiFi.status() == WL_CONNECTED)
+    // {
+    //     if (Ping.ping("www.google.com"))
+    //     {
+    //         Serial.println("pingou");
+    //         if (SD.exists("temperatura.csv"))
+    //         {
+    //             fromSdtoArd();
+    //         }
+    //         // uploadTemperature(list);
+    //         // uploadSD(list, valores);
+    //     }
+    //     else
+    //     {
+    //         Serial.println("nao pingou");
+    //         uploadSD(list, String(valores));
+    //         // if (SD.exists("temperatura.csv"))
+    //         // {
+    //         //     fromSdtoArd();
+    //         // }
+    //         // uploadTemperature(list);
+    //     }
+    // }
+    // else
+    // {
+    //     Serial.println("Not connected to Wi-Fi.");
+    //     // Reconnect to Wi-Fi
+    //     connectToWiFi();
+    // }
     Serial.println("contagem: " + String(count));
 
-    delay(2000); // Delay for 5 seconds before reading temperatures again
+    delay(5000); // Delay for 5 seconds before reading temperatures again
 }
 
 String replaceBl(const String &inputString)
@@ -141,6 +140,7 @@ String replaceBl(const String &inputString)
 void uploadTemperature(float *temperature)
 {
 
+    // TODO: upload only available sensors
     for (int i = 0; i < sensorsQnt; i += 3)
     {
         String low = user + teste(i + 1) + "/sensor_de_baixo";
@@ -350,5 +350,32 @@ void rtdbUploadCallback(RTDB_UploadStatusInfo info)
     else if (info.status == fb_esp_rtdb_upload_status_error)
     {
         Serial.printf("Upload failed, %s\n", info.errorMsg.c_str());
+    }
+}
+
+String printFormattedTime(RtcDateTime instante)
+{
+    String formattedTime = "";
+
+    formattedTime += String(instante.Month()) + "/";
+    formattedTime += String(instante.Day()) + "/";
+    formattedTime += String(instante.Year()) + ", ";
+    formattedTime += printTwoDigits((instante.Hour() > 12) ? instante.Hour() - 12 : instante.Hour()) + ":";
+    formattedTime += printTwoDigits(instante.Minute()) + ":";
+    formattedTime += printTwoDigits(instante.Second()) + " ";
+    formattedTime += instante.Hour() >= 12 ? "PM" : "AM";
+
+    return formattedTime;
+}
+
+String printTwoDigits(int number)
+{
+    if (number < 10)
+    {
+        return "0" + String(number);
+    }
+    else
+    {
+        return String(number);
     }
 }

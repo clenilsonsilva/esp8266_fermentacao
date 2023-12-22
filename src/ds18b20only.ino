@@ -14,13 +14,17 @@
 #define FIREBASE_HOST_1 "tcc-ifpa-default-rtdb.firebaseio.com" // the project name address from firebase id
 #define FIREBASE_HOST_2 "backup-data.firebaseio.com"           // the project name address from firebase id
 #define FIREBASE_AUTH "z6f4IHnNRvN48XS9hJ1Zd7T8MOjASumayA8g2zar"
+#define API_KEY "AIzaSyDfAljJmaaMx79MySzUNE3gYFoeDAYLkRs"
+#define EMAIL "clenilson@gmail.com"
+#define PASSWORD "123456"
 
 #define WIFI_SSID "276533VCT1" // input your home or public wifi name
 
 #define WIFI_PASSWORD "03734109213"
 
-FirebaseData firebaseData1;
-FirebaseData firebaseData2;
+FirebaseData firebaseData;
+FirebaseConfig config;
+FirebaseAuth auth;
 File dataFile;
 
 // Data wire is connected to GPIO pin D1 (NodeMCU pin mapping)
@@ -45,6 +49,7 @@ String teste(int number)
     return "/colcho_" + String(res);
 }
 int count = 0;
+String timeStamp = "";
 
 void setup()
 {
@@ -66,8 +71,9 @@ void setup()
     // Start communication with the DS18B20 sensors
     sensors.begin();
 
-    Firebase.begin(FIREBASE_HOST_1, FIREBASE_AUTH);
-    Firebase.begin(FIREBASE_HOST_2, FIREBASE_AUTH);
+    initalizeFirebase(FIREBASE_HOST_1);
+
+    firebaseData.setBSSLBufferSize(1024, 1024);
 
     RtcDateTime tempoatual = RtcDateTime(__DATE__, __TIME__);
     Rtc.SetDateTime(tempoatual);
@@ -76,93 +82,104 @@ void setup()
 void loop()
 {
     // Request temperature data from all sensors
-    // sensors.requestTemperatures();
+    sensors.requestTemperatures();
 
     // Loop through each sensor and print the temperature
-    // float list[sensorsQnt] = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
-    // for (int i = 0; i < sensorsQnt; i++)
-    // {
-    //     float temperature = sensors.getTempCByIndex(i);
-    //     list[i] = temperature;
-    //     Serial.print(list[i]);
-    // }
+    float list[sensorsQnt] = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
+    for (int i = 0; i < sensorsQnt; i++)
+    {
+        float temperature = sensors.getTempCByIndex(i);
+        list[i] = temperature;
+        Serial.print(list[i]);
+    }
     count++;
 
     RtcDateTime instante = Rtc.GetDateTime();
-    Serial.println(printFormattedTime(instante));
+    timeStamp = printFormattedTime(instante);
 
-    // if (WiFi.status() == WL_CONNECTED)
-    // {
-    //     if (Ping.ping("www.google.com"))
-    //     {
-    //         Serial.println("pingou");
-    //         if (SD.exists("temperatura.csv"))
-    //         {
-    //             fromSdtoArd();
-    //         }
-    //         // uploadTemperature(list);
-    //         // uploadSD(list, valores);
-    //     }
-    //     else
-    //     {
-    //         Serial.println("nao pingou");
-    //         uploadSD(list, String(valores));
-    //         // if (SD.exists("temperatura.csv"))
-    //         // {
-    //         //     fromSdtoArd();
-    //         // }
-    //         // uploadTemperature(list);
-    //     }
-    // }
-    // else
-    // {
-    //     Serial.println("Not connected to Wi-Fi.");
-    //     // Reconnect to Wi-Fi
-    //     connectToWiFi();
-    // }
+    if (WiFi.status() == WL_CONNECTED)
+    {
+        if (Ping.ping("www.google.com"))
+        {
+            Serial.println("pingou");
+            // if (SD.exists("temperatura.csv"))
+            // {
+            //     fromSdtoArd();
+            // }
+            uploadTemperature(list, timeStamp);
+        }
+        else
+        {
+            Serial.println("nao pingou");
+            uploadSD(list, timeStamp);
+            // if (SD.exists("temperatura.csv"))
+            // {
+            //     fromSdtoArd();
+            // }
+            // uploadTemperature(list);
+        }
+    }
+    else
+    {
+        Serial.println("Not connected to Wi-Fi.");
+        uploadSD(list, timeStamp);
+        // Reconnect to Wi-Fi
+        connectToWiFi();
+    }
     Serial.println("contagem: " + String(count));
 
-    delay(5000); // Delay for 5 seconds before reading temperatures again
+    delay(60000); // Delay for 5 min before reading temperatures again
 }
 
-String replaceBl(const String &inputString)
+void uploadTemperature(float *temperature, String timeStamp)
 {
-    // Create a copy of the input string
-    String modifiedString = inputString;
-
-    // Remove dots
-    modifiedString.replace(".", "");
-    modifiedString.replace("\r", "");
-    modifiedString.replace("\n", ";");
-    return modifiedString;
-}
-
-void uploadTemperature(float *temperature)
-{
+    FirebaseJson colcho;
 
     // TODO: upload only available sensors
     for (int i = 0; i < sensorsQnt; i += 3)
     {
-        String low = user + teste(i + 1) + "/sensor_de_baixo";
-        Firebase.setFloat(firebaseData1, low.c_str(), temperature[i]);
-        Serial.println(low);
-        Serial.println(temperature[i]);
+        if (temperature[i] == DEVICE_DISCONNECTED_C && temperature[i + 1] == DEVICE_DISCONNECTED_C && temperature[i + 2] == DEVICE_DISCONNECTED_C)
+        {
+            continue;
+        }
+        else
+        {
+            String test = teste(i + 1);
+            FirebaseJson json;
+            json.add("sensor_de_baixo", temperature[i]);
+            json.add("sensor_do_meio", temperature[i + 1]);
+            json.add("sensor_de_cima", temperature[i + 2]);
+            json.add("timeStamp", timeStamp);
+            colcho.add(test.substring(1, test.length()), json);
 
-        String mid = user + teste(i + 1) + "/sensor_do_meio";
-        Firebase.setFloat(firebaseData1, mid.c_str(), temperature[i + 1]);
-        Serial.println(mid);
-        Serial.println(temperature[i + 1]);
+            // String low = user + teste(i + 1) + "/sensor_de_baixo";
+            // Firebase.setFloat(firebaseData, low.c_str(), temperature[i]);
+            // Serial.println(low);
+            // Serial.println(temperature[i]);
 
-        String high = user + teste(i + 1) + "/sensor_de_cima";
-        Firebase.setFloat(firebaseData1, high.c_str(), temperature[i + 2]);
-        Serial.println(high);
-        Serial.println(temperature[i + 2]);
+            // String mid = user + teste(i + 1) + "/sensor_do_meio";
+            // Firebase.setFloat(firebaseData, mid.c_str(), temperature[i + 1]);
+            // Serial.println(mid);
+            // Serial.println(temperature[i + 1]);
 
-        // String usuario = user + teste(i + 1) + "/user";
-        // Firebase.setString(firebaseData, usuario.c_str(), user);
+            // String high = user + teste(i + 1) + "/sensor_de_cima";
+            // Firebase.setFloat(firebaseData, high.c_str(), temperature[i + 2]);
+            // Serial.println(high);
+            // Serial.println(temperature[i + 1]);
+
+            // String time = user + teste(i + 1) + "/timeStamp";
+            // Firebase.setString(firebaseData, time.c_str(), timeStamp);
+        }
     }
-    Serial.println("");
-    Serial.println("");
+    if (Firebase.setJSON(firebaseData, user.c_str(), colcho))
+    {
+        Serial.println("PASSED");
+    }
+    else
+    {
+        Serial.println("FAILED");
+        Serial.println(firebaseData.errorReason());
+    }
 }
 // upload ds18b20 values to sdcard
 void uploadSD(float *temperature, String timeStamp)
@@ -235,19 +252,12 @@ void fromSdtoArd()
 
     if (dataFile)
     {
+        initalizeFirebase(FIREBASE_HOST_2);
         Serial.println("File opened successfully:");
 
         while (dataFile.available())
-        { // Read and print the file contents
-            // String stringone = dataFile.readString();
-            // String stringtwo = stringone.replace("", "/n");
-            // Serial.println("string:" + stringone);
-            // String data = "clenilson/backUp/data";
-            // unsigned long timeout = millis();
-            // stringone = replaceBl(stringone);
-            // unsigned long endtime = millis() - timeout;
-            // sent file to firebase
-            if (!Firebase.setFile(firebaseData2, StorageType::SD, "clenilson/backup", "temperatura.csv", rtdbUploadCallback /* callback function*/))
+        { // Read data from file and send it to Firebase
+            if (Firebase.setFile(firebaseData, StorageType::SD, "clenilson/backup", "temperatura.csv", rtdbUploadCallback /* callback function*/))
             {
                 Serial.println("PASSED");
                 // // Delete the file after sending data to Firestore
@@ -263,73 +273,18 @@ void fromSdtoArd()
             else
             {
                 Serial.println("FAILED");
-                Serial.println(firebaseData2.errorReason());
+                Serial.println(firebaseData.errorReason());
             }
             // Serial.println("Data sent to Firestore!");
 
             // // Close the file
             dataFile.close();
-
-            // // Delete the file after sending data to Firestore
-            // if (SD.remove("temperatura.csv"))
-            // {
-            //     Serial.println("File deleted successfully!");
-            // }
-            // else
-            // {
-            //     Serial.println("Error deleting file!");
-            // }
-
-            // Serial.println(stringone);
-
-            // Close the file
-            dataFile.close();
-            //
         }
+        initalizeFirebase(FIREBASE_HOST_1);
     }
     else
     {
         Serial.println("Error opening file.");
-    }
-}
-void parseAndStoreValues(String input)
-{
-    // Define variables to store the parsed values
-    String time;
-    float values[9]; // Assuming 9 numeric values in the input
-
-    // Find the position of the first comma
-    int commaIndex = input.indexOf(',');
-
-    // Extract the time value
-    time = input.substring(0, commaIndex);
-    input = input.substring(commaIndex + 1);
-
-    // Parse and store the numeric values
-    for (int i = 0; i < 9; i++)
-    {
-        commaIndex = input.indexOf(',');
-        if (commaIndex == -1)
-        {
-            // Last value in the string
-            values[i] = input.toFloat();
-        }
-        else
-        {
-            values[i] = input.substring(0, commaIndex).toFloat();
-            input = input.substring(commaIndex + 1);
-        }
-    }
-
-    // Print the parsed values for verification
-    Serial.println("TimesTamp: " + time);
-    for (int i = 0; i < 9; i += 3)
-    {
-        Serial.println(teste(i) + ": sensor_de_baixo: " + values[i]);
-
-        Serial.println(teste(i + 1) + ": sensor_do_meio: " + values[i + 1]);
-
-        Serial.println(teste(i + 2) + ": sensor_de_cima: " + values[i + 2]);
     }
 }
 
@@ -360,7 +315,7 @@ String printFormattedTime(RtcDateTime instante)
     formattedTime += String(instante.Month()) + "/";
     formattedTime += String(instante.Day()) + "/";
     formattedTime += String(instante.Year()) + ", ";
-    formattedTime += printTwoDigits((instante.Hour() > 12) ? instante.Hour() - 12 : instante.Hour()) + ":";
+    formattedTime += String(((instante.Hour() + 3) > 12) ? (instante.Hour() + 3) - 12 : (instante.Hour() + 3)) + ":";
     formattedTime += printTwoDigits(instante.Minute()) + ":";
     formattedTime += printTwoDigits(instante.Second()) + " ";
     formattedTime += instante.Hour() >= 12 ? "PM" : "AM";
@@ -378,4 +333,15 @@ String printTwoDigits(int number)
     {
         return String(number);
     }
+}
+
+void initalizeFirebase(const char *host)
+{
+    config.host = host;
+    config.api_key = API_KEY;
+
+    auth.user.email = EMAIL;
+    auth.user.password = PASSWORD;
+
+    Firebase.begin(&config, &auth);
 }

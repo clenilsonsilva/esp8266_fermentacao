@@ -21,7 +21,15 @@
 			"vector": "cpp",
 			"string_view": "cpp",
 			"initializer_list": "cpp",
-			"ranges": "cpp"
+			"ranges": "cpp",
+			"*.tcc": "cpp",
+			"exception": "cpp",
+			"optional": "cpp",
+			"memory": "cpp",
+			"istream": "cpp",
+			"new": "cpp",
+			"ostream": "cpp",
+			"system_error": "cpp"
 		}
 	}
 }

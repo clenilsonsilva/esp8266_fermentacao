@@ -96,17 +96,21 @@ void loop()
 
     RtcDateTime instante = Rtc.GetDateTime();
     timeStamp = printFormattedTime(instante);
+    Serial.println(timeStamp);
 
     if (WiFi.status() == WL_CONNECTED)
     {
         if (Ping.ping("www.google.com"))
         {
             Serial.println("pingou");
-            // if (SD.exists("temperatura.csv"))
-            // {
-            //     fromSdtoArd();
-            // }
-            uploadTemperature(list, timeStamp);
+            if (SD.exists("temperatura.csv"))
+            {
+                fromSdtoArd();
+            }
+            else
+            {
+                uploadTemperature(list, timeStamp);
+            }
         }
         else
         {
@@ -128,14 +132,13 @@ void loop()
     }
     Serial.println("contagem: " + String(count));
 
-    delay(60000); // Delay for 5 min before reading temperatures again
+    delay(45000); // Delay for 5 min before reading temperatures again
 }
 
 void uploadTemperature(float *temperature, String timeStamp)
 {
     FirebaseJson colcho;
-
-    // TODO: upload only available sensors
+    int count = 0;
     for (int i = 0; i < sensorsQnt; i += 3)
     {
         if (temperature[i] == DEVICE_DISCONNECTED_C && temperature[i + 1] == DEVICE_DISCONNECTED_C && temperature[i + 2] == DEVICE_DISCONNECTED_C)
@@ -151,6 +154,7 @@ void uploadTemperature(float *temperature, String timeStamp)
             json.add("sensor_de_cima", temperature[i + 2]);
             json.add("timeStamp", timeStamp);
             colcho.add(test.substring(1, test.length()), json);
+            count++;
 
             // String low = user + teste(i + 1) + "/sensor_de_baixo";
             // Firebase.setFloat(firebaseData, low.c_str(), temperature[i]);
@@ -171,15 +175,19 @@ void uploadTemperature(float *temperature, String timeStamp)
             // Firebase.setString(firebaseData, time.c_str(), timeStamp);
         }
     }
-    if (Firebase.setJSON(firebaseData, user.c_str(), colcho))
+    if (count > 0)
     {
-        Serial.println("PASSED");
+        if (Firebase.setJSON(firebaseData, user.c_str(), colcho))
+        {
+            Serial.println("PASSED");
+        }
+        else
+        {
+            Serial.println("FAILED");
+            Serial.println(firebaseData.errorReason());
+        }
     }
-    else
-    {
-        Serial.println("FAILED");
-        Serial.println(firebaseData.errorReason());
-    }
+    // colcho.
 }
 // upload ds18b20 values to sdcard
 void uploadSD(float *temperature, String timeStamp)
@@ -235,15 +243,25 @@ void connectToWiFi()
 {
     Serial.println("Connecting to Wi-Fi...");
     WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
+    int attempts = 0;
 
-    while (WiFi.status() != WL_CONNECTED)
+    while (WiFi.status() != WL_CONNECTED && attempts < 20)
     {
         delay(1000);
         Serial.println("Connecting...");
+        attempts++;
     }
 
-    Serial.println("Connected to Wi-Fi. IP address: " + WiFi.localIP().toString());
+    if (WiFi.status() == WL_CONNECTED)
+    {
+        Serial.println("Connected to Wi-Fi. IP address: " + WiFi.localIP().toString());
+    }
+    else
+    {
+        Serial.println("Failed to connect to Wi-Fi within 20 seconds.");
+    }
 }
+
 void fromSdtoArd()
 {
 
@@ -261,14 +279,14 @@ void fromSdtoArd()
             {
                 Serial.println("PASSED");
                 // // Delete the file after sending data to Firestore
-                // if (SD.remove("temperatura.csv"))
-                // {
-                //     Serial.println("File deleted successfully!");
-                // }
-                // else
-                // {
-                //     Serial.println("Error deleting file!");
-                // }
+                if (SD.remove("temperatura.csv"))
+                {
+                    Serial.println("File deleted successfully!");
+                }
+                else
+                {
+                    Serial.println("Error deleting file!");
+                }
             }
             else
             {
@@ -314,7 +332,7 @@ String printFormattedTime(RtcDateTime instante)
 
     formattedTime += String(instante.Month()) + "/";
     formattedTime += String(instante.Day()) + "/";
-    formattedTime += String(instante.Year()) + ", ";
+    formattedTime += String(instante.Year()) + "; ";
     formattedTime += String(((instante.Hour() + 3) > 12) ? (instante.Hour() + 3) - 12 : (instante.Hour() + 3)) + ":";
     formattedTime += printTwoDigits(instante.Minute()) + ":";
     formattedTime += printTwoDigits(instante.Second()) + " ";

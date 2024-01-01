@@ -29,7 +29,11 @@
 			"istream": "cpp",
 			"new": "cpp",
 			"ostream": "cpp",
-			"system_error": "cpp"
+			"system_error": "cpp",
+			"functional": "cpp",
+			"tuple": "cpp",
+			"type_traits": "cpp",
+			"utility": "cpp"
 		}
 	}
 }

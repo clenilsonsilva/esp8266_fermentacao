@@ -8,7 +8,9 @@
 #include <ESP8266Ping.h>
 
 #include <Wire.h>
-#include <RtcDS3231.h>
+#include <RTClib.h>
+#include <NTPClient.h>
+#include <WiFiUdp.h>
 // teste
 
 #define FIREBASE_HOST_1 "tcc-ifpa-default-rtdb.firebaseio.com" // the project name address from firebase id
@@ -31,11 +33,13 @@ File dataFile;
 const int oneWireBus = D3;
 const int sensorsQnt = 9;
 
-RtcDS3231<TwoWire> Rtc(Wire);
+RTC_DS3231 rtc;
+WiFiUDP ntpUDP;
+NTPClient timeClient(ntpUDP, "pool.ntp.org");
 
 const int chipSelect = D8;
 
-const String user = "clenilson";
+const String user = "z9zr3Vrxz4WMUMWEheMYwlc7rc92";
 
 // Create a OneWire instance to communicate with any OneWire devices
 OneWire oneWire(oneWireBus);
@@ -55,9 +59,26 @@ void setup()
 {
     Serial.begin(460800);
 
-    Rtc.Begin();
-
+    if (!rtc.begin())
+    {
+        Serial.println("Couldn't find RTC");
+        while (1)
+            ;
+    }
+    if (rtc.lostPower())
+    {
+        Serial.println("RTC lost power, let's set the time!");
+        rtc.adjust(DateTime(F(__DATE__), F(__TIME__)));
+    }
     connectToWiFi();
+
+    if (Ping.ping("www.google.com"))
+    {
+        timeClient.begin();
+        timeClient.update();
+        time_t currentTime = timeClient.getEpochTime();
+        rtc.adjust(DateTime(currentTime));
+    }
 
     if (!SD.begin(chipSelect))
     {
@@ -74,9 +95,6 @@ void setup()
     initalizeFirebase(FIREBASE_HOST_1);
 
     firebaseData.setBSSLBufferSize(1024, 1024);
-
-    RtcDateTime tempoatual = RtcDateTime(__DATE__, __TIME__);
-    Rtc.SetDateTime(tempoatual);
 }
 
 void loop()
@@ -94,8 +112,8 @@ void loop()
     }
     count++;
 
-    RtcDateTime instante = Rtc.GetDateTime();
-    timeStamp = printFormattedTime(instante);
+    DateTime now = rtc.now();
+    timeStamp = printFormattedTime(now);
     Serial.println(timeStamp);
 
     if (WiFi.status() == WL_CONNECTED)
@@ -103,14 +121,15 @@ void loop()
         if (Ping.ping("www.google.com"))
         {
             Serial.println("pingou");
-            if (SD.exists("temperatura.csv"))
-            {
-                fromSdtoArd();
-            }
-            else
-            {
-                uploadTemperature(list, timeStamp);
-            }
+            uploadTemperature(list, timeStamp);
+            // if (SD.exists("temperatura.csv"))
+            // // {
+            // //     fromSdtoArd();
+            // }
+            // else
+            // {
+            //     uploadTemperature(list, timeStamp);
+            // }
         }
         else
         {
@@ -132,7 +151,7 @@ void loop()
     }
     Serial.println("contagem: " + String(count));
 
-    delay(45000); // Delay for 5 min before reading temperatures again
+    delay(10000); // Delay for 5 min before reading temperatures again
 }
 
 void uploadTemperature(float *temperature, String timeStamp)
@@ -275,7 +294,7 @@ void fromSdtoArd()
 
         while (dataFile.available())
         { // Read data from file and send it to Firebase
-            if (Firebase.setFile(firebaseData, StorageType::SD, "clenilson/backup", "temperatura.csv", rtdbUploadCallback /* callback function*/))
+            if (Firebase.setFile(firebaseData, StorageType::SD, "Rp5T4IljBZg983ygFOhcnyprML02/backup", "temperatura.csv", rtdbUploadCallback /* callback function*/))
             {
                 Serial.println("PASSED");
                 // // Delete the file after sending data to Firestore
@@ -326,17 +345,17 @@ void rtdbUploadCallback(RTDB_UploadStatusInfo info)
     }
 }
 
-String printFormattedTime(RtcDateTime instante)
+String printFormattedTime(DateTime now)
 {
     String formattedTime = "";
 
-    formattedTime += String(instante.Month()) + "/";
-    formattedTime += String(instante.Day()) + "/";
-    formattedTime += String(instante.Year()) + "; ";
-    formattedTime += String(((instante.Hour() + 3) > 12) ? (instante.Hour() + 3) - 12 : (instante.Hour() + 3)) + ":";
-    formattedTime += printTwoDigits(instante.Minute()) + ":";
-    formattedTime += printTwoDigits(instante.Second()) + " ";
-    formattedTime += instante.Hour() >= 12 ? "PM" : "AM";
+    formattedTime += String(now.month()) + "/";
+    formattedTime += String(now.day()) + "/";
+    formattedTime += String(now.year()) + "; ";
+    formattedTime += String((now.hour() <= 12 ? now.hour() + 12 : now.hour())) + ":";
+    formattedTime += printTwoDigits(now.minute()) + ":";
+    formattedTime += printTwoDigits(now.second()) + " ";
+    formattedTime += (now.hour()) >= 12 ? "PM" : "AM";
 
     return formattedTime;
 }
